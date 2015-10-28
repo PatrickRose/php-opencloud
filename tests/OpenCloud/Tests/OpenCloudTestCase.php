@@ -28,12 +28,18 @@ abstract class OpenCloudTestCase extends \PHPUnit_Framework_TestCase
     const ANNOTATION_FILE = 'mockFile';
     const ANNOTATION_PATH = 'mockPath';
 
+    /**
+     * @var Rackspace
+     */
     public $client;
 
     protected $mockPath = './';
     protected $testDir = '_response/';
     protected $testExt = '.resp';
 
+    /**
+     * @var MockSubscriber
+     */
     protected $currentMockSubscriber;
 
     public function newClient()

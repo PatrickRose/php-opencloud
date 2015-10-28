@@ -84,6 +84,21 @@ class DataObject extends AbstractResource
     protected $manifest = false;
 
     /**
+     * @var \Datetime The time this object will be expired. Will be null if none given
+     */
+    private $deleteAtTime;
+
+    /**
+     * @var string Content-Encoding
+     */
+    private $contentEncoding;
+
+    /**
+     * @var string Content-Disposition
+     */
+    private $contentDisposition;
+
+    /**
      * Also need to set Container parent and handle pseudo-directories.
      * {@inheritDoc}
      *
@@ -145,9 +160,12 @@ class DataObject extends AbstractResource
             ->setContentType((string) $headers[HeaderConst::CONTENT_TYPE])
             ->setLastModified((string) $headers[HeaderConst::LAST_MODIFIED])
             ->setContentLength((string) $headers[HeaderConst::CONTENT_LENGTH])
+            ->setContentEncoding((string) $headers[HeaderConst::CONTENT_ENCODING])
+            ->setContentDisposition((string) $headers[HeaderConst::CONTENT_DISPOSITION])
             ->setEtag((string) $headers[HeaderConst::ETAG])
             // do not cast to a string to allow for null (i.e. no header)
-            ->setManifest($headers[HeaderConst::X_OBJECT_MANIFEST]);
+            ->setManifest($headers[HeaderConst::X_OBJECT_MANIFEST])
+            ->setDeleteAtTime($headers[HeaderConst::X_DELETE_AT]);
     }
 
     public function refresh()
@@ -157,6 +175,31 @@ class DataObject extends AbstractResource
             ->send();
 
         return $this->populateFromResponse($response);
+    }
+
+    public function setMetadata($data, $constructFromResponse = false)
+    {
+        if ($constructFromResponse === true)
+        {
+            if (isset($data[HeaderConst::CONTENT_DISPOSITION]))
+            {
+                $this->setContentDisposition($data[HeaderConst::CONTENT_DISPOSITION]);
+            }
+            if (isset($data[HeaderConst::CONTENT_ENCODING]))
+            {
+                $this->setContentEncoding($data[HeaderConst::CONTENT_ENCODING]);
+            }
+            if (isset($data[HeaderConst::CONTENT_TYPE]))
+            {
+                $this->setContentType($data[HeaderConst::CONTENT_TYPE]);
+            }
+            if (isset($data[HeaderConst::X_DELETE_AT]))
+            {
+                $this->setDeleteAtTime($data[HeaderConst::X_DELETE_AT]);
+            }
+        }
+        
+        return parent::setMetadata($data, $constructFromResponse);
     }
 
     /**
@@ -355,12 +398,27 @@ class DataObject extends AbstractResource
 
         // merge specific properties with metadata
         $metadata += array(
-            HeaderConst::CONTENT_TYPE      => $this->contentType,
+            HeaderConst::CONTENT_TYPE        => $this->contentType,
             HeaderConst::LAST_MODIFIED     => $this->lastModified,
             HeaderConst::CONTENT_LENGTH    => $this->contentLength,
             HeaderConst::ETAG              => $this->etag,
             HeaderConst::X_OBJECT_MANIFEST => $this->manifest
         );
+
+        if ($this->deleteAtTime instanceof \DateTime)
+        {
+            $metadata[HeaderConst::X_DELETE_AT] = $this->deleteAtTime->getTimestamp();
+        }
+
+        if ($this->contentEncoding !== null)
+        {
+            $metadata[HeaderConst::CONTENT_ENCODING] = $this->contentEncoding;
+        }
+
+        if ($this->contentDisposition !== null)
+        {
+            $metadata[HeaderConst::CONTENT_DISPOSITION] = $this->contentDisposition;
+        }
 
         return $this->container->uploadObject($this->name, $this->content, $metadata);
     }
@@ -560,5 +618,93 @@ class DataObject extends AbstractResource
         $this->setManifest($manifest);
         
         return $manifest;
+    }
+
+    public function getDeleteAtTime()
+    {
+        return $this->deleteAtTime;
+    }
+
+    /**
+     * @param \DateTime|\Guzzle\Http\Message\Header $deleteAtTime
+     */
+    public function setDeleteAtTime($deleteAtTime)
+    {
+        if (!$deleteAtTime instanceof \DateTime && !is_null($deleteAtTime))
+        {
+            // Is an integer - convert into a date time object
+            /** @var \Guzzle\Http\Message\Header $deleteAtTime */
+            $timestamp = (string) $deleteAtTime;
+            $deleteAtTime = new \DateTime();
+            $deleteAtTime->setTimestamp($timestamp);
+        }
+
+        $this->deleteAtTime = $deleteAtTime;
+
+        return $this;
+    }
+
+    public function setDeleteAfter($expireAfter)
+    {
+        $expireAt = new \DateTime();
+        $expireAt->add(\DateInterval::createFromDateString("+$expireAfter seconds"));
+
+        return $this->setDeleteAtTime($expireAt);
+    }
+
+    /**
+     * {inheritdoc}
+     *
+     * This is overriden since there is system metadata that we should be updating for the object
+     */
+    public function saveMetadata(array $metadata, $stockPrefix = true)
+    {
+        $headers = ($stockPrefix === true) ? self::stockHeaders($metadata) : $metadata;
+
+        if ($this->deleteAtTime instanceof \DateTime)
+        {
+            $headers[HeaderConst::X_DELETE_AT] = $this->deleteAtTime->getTimestamp();
+        }
+
+        if ($this->contentEncoding !== null)
+        {
+            $headers[HeaderConst::CONTENT_ENCODING] = $this->contentEncoding;
+        }
+
+        if ($this->contentType !== null)
+        {
+            $headers[HeaderConst::CONTENT_TYPE] = $this->contentType;
+        }
+
+        if ($this->contentDisposition !== null)
+        {
+            $headers[HeaderConst::CONTENT_DISPOSITION] = $this->contentDisposition;
+        }
+
+        return parent::saveMetadata($headers, false);
+    }
+
+    public function getContentEncoding()
+    {
+        return $this->contentEncoding;
+    }
+
+    public function setContentEncoding($contentEncoding)
+    {
+        $this->contentEncoding = $contentEncoding;
+
+        return $this;
+    }
+
+    public function getContentDisposition()
+    {
+        return $this->contentDisposition;
+    }
+
+    public function setContentDisposition($contentDisposition)
+    {
+        $this->contentDisposition = $contentDisposition;
+
+        return $this;
     }
 }

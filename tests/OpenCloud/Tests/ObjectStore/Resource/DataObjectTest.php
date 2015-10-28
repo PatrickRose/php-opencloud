@@ -17,10 +17,12 @@
 
 namespace OpenCloud\Tests\ObjectStore\Resource;
 
+use Guzzle\Http\Message\Request;
 use Guzzle\Http\Message\Response;
 use OpenCloud\Common\Constants\Header;
 use OpenCloud\ObjectStore\Constants\UrlType;
 use OpenCloud\ObjectStore\Exception\ObjectNotEmptyException;
+use OpenCloud\ObjectStore\Resource\DataObject;
 use OpenCloud\Tests\MockSubscriber;
 use OpenCloud\Tests\ObjectStore\ObjectStoreTestCase;
 
@@ -211,4 +213,204 @@ class DataObjectTest extends ObjectStoreTestCase
 
         $object = $this->container->dataObject('foobar')->createSymlinkFrom('new_container/new_object');
     }
+
+    public function test_Can_Get_Delete_At()
+    {
+        $expectedDeleteTime = \DateTime::createFromFormat('Y-m-d H:i:s', '2010-10-10 10:10:10');
+        $this->addMockSubscriber(new Response(200, array(Header::X_DELETE_AT => $expectedDeleteTime->getTimestamp())));
+        $actualDeleteTime = $this->container->dataObject('foobar')->getDeleteAtTime();
+
+        $this->assertEquals($expectedDeleteTime, $actualDeleteTime);
+    }
+
+    public function test_Can_Set_Delete_At_Time()
+    {
+        $expectedDeleteTime = \DateTime::createFromFormat('Y-m-d H:i:s', '2010-10-10 10:10:10');
+        $this->addMockSubscriber(new Response(200));
+        $object = $this->container->dataObject('foobar');
+        $this->addMockSubscriber(new Response(200));
+
+        $object->setDeleteAtTime($expectedDeleteTime)->update();
+
+        $mockSubscriber = $this->currentMockSubscriber;
+        $receivedRequests = $mockSubscriber->getReceivedRequests();
+        $this->assertCount(1, $receivedRequests);
+        /** @var Request $request */
+        $request = $receivedRequests[0];
+        $this->assertEquals($expectedDeleteTime->getTimestamp(), (string) $request->getHeader(Header::X_DELETE_AT));
+    }
+
+    public function test_Can_Set_Delete_At_Using_Delete_After()
+    {
+        $object = $this->container->dataObject('foobar');
+        $expected = new \DateTime();
+        $expected->add(\DateInterval::createFromDateString('+100 seconds'));
+        $object->setDeleteAfter(100);
+
+        $this->assertEquals($expected, $object->getDeleteAtTime());
+    }
+
+    public function test_Can_Set_Delete_At_During_Save_Metadata()
+    {
+        $expectedDeleteTime = \DateTime::createFromFormat('Y-m-d H:i:s', '2010-10-10 10:10:10');
+        $this->addMockSubscriber(new Response(200));
+        $object = $this->container->dataObject('foobar');
+        $this->addMockSubscriber(new Response(200));
+
+        $object->setDeleteAtTime($expectedDeleteTime)->saveMetadata([]);
+
+        $mockSubscriber = $this->currentMockSubscriber;
+        $receivedRequests = $mockSubscriber->getReceivedRequests();
+        $this->assertCount(1, $receivedRequests);
+        /** @var Request $request */
+        $request = $receivedRequests[0];
+        $this->assertEquals($expectedDeleteTime->getTimestamp(), (string) $request->getHeader(Header::X_DELETE_AT));
+    }
+
+    public function test_Can_Get_Content_Encoding()
+    {
+        $this->addMockSubscriber(new Response(200, array(Header::CONTENT_ENCODING => 'foo')));
+        $actualContentEncoding = $this->container->dataObject('foobar')->getContentEncoding();
+
+        $this->assertEquals('foo', $actualContentEncoding);
+    }
+
+    public function test_Can_Set_Content_Encoding()
+    {
+        $this->addMockSubscriber(new Response(200));
+        $object = $this->container->dataObject('foobar');
+        $this->addMockSubscriber(new Response(200));
+
+        $object->setContentEncoding('foo')->update();
+
+        $mockSubscriber = $this->currentMockSubscriber;
+        $receivedRequests = $mockSubscriber->getReceivedRequests();
+        $this->assertCount(1, $receivedRequests);
+        /** @var Request $request */
+        $request = $receivedRequests[0];
+        $this->assertEquals('foo', (string) $request->getHeader(Header::CONTENT_ENCODING));
+    }
+
+    public function test_Can_Set_Content_Encoding_During_Save_Metadata()
+    {
+        $this->addMockSubscriber(new Response(200));
+        $object = $this->container->dataObject('foobar');
+        $this->addMockSubscriber(new Response(200));
+
+        $object->setContentEncoding('foo')->saveMetadata([]);
+
+        $mockSubscriber = $this->currentMockSubscriber;
+        $receivedRequests = $mockSubscriber->getReceivedRequests();
+        $this->assertCount(1, $receivedRequests);
+        /** @var Request $request */
+        $request = $receivedRequests[0];
+        $this->assertEquals('foo', (string) $request->getHeader(Header::CONTENT_ENCODING));
+    }
+
+    public function test_Can_Get_Content_Type()
+    {
+        $this->addMockSubscriber(new Response(200, array(Header::CONTENT_TYPE => 'foo')));
+        $actualContentType = $this->container->dataObject('foobar')->getContentType();
+
+        $this->assertEquals('foo', $actualContentType);
+    }
+
+    public function test_Can_Set_Content_Type()
+    {
+        $this->addMockSubscriber(new Response(200));
+        $object = $this->container->dataObject('foobar');
+        $this->addMockSubscriber(new Response(200));
+
+        $object->setContentType('foo')->update();
+
+        $mockSubscriber = $this->currentMockSubscriber;
+        $receivedRequests = $mockSubscriber->getReceivedRequests();
+        $this->assertCount(1, $receivedRequests);
+        /** @var Request $request */
+        $request = $receivedRequests[0];
+        $this->assertEquals('foo', (string) $request->getHeader(Header::CONTENT_TYPE));
+    }
+
+    public function test_Can_Set_Content_Type_During_Save_Metadata()
+    {
+        $this->addMockSubscriber(new Response(200));
+        $object = $this->container->dataObject('foobar');
+        $this->addMockSubscriber(new Response(200));
+
+        $object->setContentType('foo')->saveMetadata([]);
+
+        $mockSubscriber = $this->currentMockSubscriber;
+        $receivedRequests = $mockSubscriber->getReceivedRequests();
+        $this->assertCount(1, $receivedRequests);
+        /** @var Request $request */
+        $request = $receivedRequests[0];
+        $this->assertEquals('foo', (string) $request->getHeader(Header::CONTENT_TYPE));
+    }
+
+    public function test_Can_Get_Content_Disposition()
+    {
+        $this->addMockSubscriber(new Response(200, array(Header::CONTENT_DISPOSITION => 'foo')));
+        $actualContentDisposition = $this->container->dataObject('foobar')->getContentDisposition();
+
+        $this->assertEquals('foo', $actualContentDisposition);
+    }
+
+    public function test_Can_Set_Content_Disposition()
+    {
+        $this->addMockSubscriber(new Response(200));
+        $object = $this->container->dataObject('foobar');
+        $this->addMockSubscriber(new Response(200));
+
+        $object->setContentDisposition('foo')->update();
+
+        $mockSubscriber = $this->currentMockSubscriber;
+        $receivedRequests = $mockSubscriber->getReceivedRequests();
+        $this->assertCount(1, $receivedRequests);
+        /** @var Request $request */
+        $request = $receivedRequests[0];
+        $this->assertEquals('foo', (string) $request->getHeader(Header::CONTENT_DISPOSITION));
+    }
+
+    public function test_Can_Set_Content_Disposition_During_Save_Metadata()
+    {
+        $this->addMockSubscriber(new Response(200));
+        $object = $this->container->dataObject('foobar');
+        $this->addMockSubscriber(new Response(200));
+
+        $object->setContentDisposition('foo')->saveMetadata([]);
+
+        $mockSubscriber = $this->currentMockSubscriber;
+        $receivedRequests = $mockSubscriber->getReceivedRequests();
+        $this->assertCount(1, $receivedRequests);
+        /** @var Request $request */
+        $request = $receivedRequests[0];
+        $this->assertEquals('foo', (string) $request->getHeader(Header::CONTENT_DISPOSITION));
+    }
+
+    public function test_Can_Set_System_Metadata_When_Retrieving_Metadata()
+    {
+        $this->addMockSubscriber(new Response(200));
+
+        /** @var DataObject $object */
+        $object = $this->container->dataObject('foobar');
+        $expectedDeleteAt = new \DateTime();
+        $this->addMockSubscriber(new Response(
+                200,
+                [
+                    Header::CONTENT_DISPOSITION => 'content-disposition',
+                    Header::CONTENT_TYPE => 'content-type',
+                    Header::X_DELETE_AT => $expectedDeleteAt->getTimestamp(),
+                    Header::CONTENT_ENCODING => 'content-encoding',
+                ]
+            )
+        );
+
+        $object->retrieveMetadata();
+
+        $this->assertEquals('content-disposition', $object->getContentDisposition());
+        $this->assertEquals('content-type', $object->getContentType());
+        $this->assertEquals('content-encoding', $object->getContentEncoding());
+        $this->assertEquals($expectedDeleteAt, $object->getDeleteAtTime());
+    }
+
 }

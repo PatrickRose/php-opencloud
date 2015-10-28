@@ -35,6 +35,7 @@ class Header
     const AUTHORIZATION = 'Authorization';
     const CACHE_CONTROL = 'Cache-Control';
     const CONNECTION = 'Connection';
+    const CONTENT_DISPOSITION = 'Content-Disposition';
     const CONTENT_ENCODING = 'Content-Encoding';
     const CONTENT_LANGUAGE = 'Content-Language';
     const CONTENT_LENGTH = 'Content-Length';
@@ -71,4 +72,5 @@ class Header
     const VARY = 'Vary';
     const VIA = 'Via';
     const X_OBJECT_MANIFEST = 'X-Object-Manifest';
+    const X_DELETE_AT = 'X-Delete-At';
 }
